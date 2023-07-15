@@ -1,9 +1,11 @@
 mod tree;
 mod cli;
+mod parsing;
 
 use crate::{
     cli::parse,
     tree::StatefulTree,
+    parsing::*
 };
 
 use crossterm::{
@@ -11,7 +13,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use std::{error::Error, io, env, process::exit, slice::Iter};
+use std::{error::Error, io, env, process::exit};
 use tui::{
     backend::{Backend, CrosstermBackend},
     style::{Color, Modifier, Style},
@@ -19,7 +21,7 @@ use tui::{
     Terminal,
 };
 
-use tui_tree_widget::{Tree, TreeItem};
+use tui_tree_widget::Tree;
 
 use ncbi::eutils::{
     parse_xml, get_local_xml, DataType
@@ -30,28 +32,9 @@ struct App<'a> {
     tree: StatefulTree<'a>,
 }
 
-fn group_lines<'a>(start: Option<&'a str>, lines: &mut Iter<&'a str>) -> TreeItem<'a> {
-    let mut item = Vec::new();
-    loop {
-        let next = lines.next();
-        if let Some(line) = next {
-            if line.contains("{") || line.contains("[") {
-                item.push(group_lines(Some(line), lines));
-            } else if line.contains("}") || line.contains("]") {
-                break;
-            } else {
-                item.push(TreeItem::new_leaf(*line));
-            }
-        } else {
-            break;
-        }
-    }
-    TreeItem::new(start.unwrap(), item)
-}
-
 impl<'a> App<'a> {
     fn new(lines: Vec<&'a str>, filename: String) -> Self {
-        let tree = group_lines("bioseq-set".into(), &mut lines.iter());
+        let tree = group_lines(None, &mut lines.iter());
 
         Self {
             filename,
@@ -108,18 +91,6 @@ fn run(file: String) -> Result<(), Box<dyn Error>> {
     }
 
     Ok(())
-}
-
-fn format_strings(string: String) -> String {
-    string.replace(',', "\n")
-          .replace('{', "{\n").replace('}', "\n}")
-          .replace('[', "[\n").replace(']', "\n]")
-          .replace('"', " ")
-          .replace('\'', " ")
-          .replace("Str(", " ")
-}
-fn split_strings<'a>(formatted: &'a String) -> Vec<&'a str> {
-    formatted.split("\n").map(|s| s.trim()).collect()
 }
 
 fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<()> {
