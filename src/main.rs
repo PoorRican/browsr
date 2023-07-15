@@ -35,7 +35,7 @@ struct App<'a> {
     filename: String,
 }
 
-fn val_to_tree_item<'a>(val: Value) -> Option<TreeItem<'a>> {
+fn val_to_tree_item<'a>(key: Option<String>, val: Value) -> Option<TreeItem<'a>> {
     match val {
         Value::Null => None,
         Value::Bool(val) => {
@@ -48,23 +48,39 @@ fn val_to_tree_item<'a>(val: Value) -> Option<TreeItem<'a>> {
                 )
             )
         }
-        Value::Number(num) => Some(TreeItem::new_leaf(format!("{}", num))),
-        Value::String(val) => Some(TreeItem::new_leaf(val.to_string())),
+        Value::Number(num) => {
+            if key.is_some() {
+                Some(TreeItem::new_leaf(format!("{}: {}", key.unwrap(), num)))
+            } else {
+                Some(TreeItem::new_leaf(format!("{}", num)))
+            }
+        }
+        Value::String(val) => {
+            if key.is_some() {
+                Some(TreeItem::new_leaf(format!("{}: {}", key.unwrap(), val.to_string())))
+            } else {
+                Some(TreeItem::new_leaf(format!("{}", val.to_string())))
+            }
+        }
         Value::Array(val) => {
             let items: Vec<TreeItem> = 
                 val.into_iter()
-                   .map(|i| val_to_tree_item(i))
+                   .map(|i| val_to_tree_item(None, i))
                    .filter(|i| i.is_some())
                    .map(|i| i.unwrap())
                    .collect();
-            Some(TreeItem::new("array", items))
+            if key.is_some() {
+                Some(TreeItem::new(format!("{}", key.unwrap()), items))
+            } else {
+                Some(TreeItem::new("array", items))
+            }
         }
         Value::Object(obj) => {
             let mut values = Vec::new();
-            for (key, value) in obj.into_iter() {
-                let item = val_to_tree_item(value);
+            for (sub_key, value) in obj.into_iter() {
+                let item = val_to_tree_item(sub_key.into(), value);
                 if let Some(item) = item {
-                    values.push(TreeItem::new(key, vec![item]));
+                    values.push(item);
                 }
             }
             Some(TreeItem::new("object", values))
@@ -74,7 +90,7 @@ fn val_to_tree_item<'a>(val: Value) -> Option<TreeItem<'a>> {
 
 fn parse_to_tree<'a, T: Serialize>(object: &T) -> Option<TreeItem<'a>> {
     if let Ok(json) = to_value(object) {
-        return val_to_tree_item(json)
+        return val_to_tree_item("bioseq".to_string().into(), json)
     }
     None
 }
