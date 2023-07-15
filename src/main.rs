@@ -11,7 +11,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use std::{error::Error, io, env, process::exit};
+use std::{error::Error, io, env, process::exit, slice::Iter};
 use tui::{
     backend::{Backend, CrosstermBackend},
     style::{Color, Modifier, Style},
@@ -24,89 +24,38 @@ use tui_tree_widget::{Tree, TreeItem};
 use ncbi::eutils::{
     parse_xml, get_local_xml, DataType
 };
-use serde::Serialize;
-use serde_json::value::{
-    to_value,
-    Value
-};
 
 struct App<'a> {
-    tree: StatefulTree<'a>,
     filename: String,
+    tree: StatefulTree<'a>,
 }
 
-fn val_to_tree_item<'a>(key: Option<String>, val: Value) -> Option<TreeItem<'a>> {
-    match val {
-        Value::Null => None,
-        Value::Bool(val) => {
-            Some(
-                TreeItem::new_leaf(
-                    match val {
-                        true => "true",
-                        false => "false"
-                    }
-                )
-            )
-        }
-        Value::Number(num) => {
-            if key.is_some() {
-                Some(TreeItem::new_leaf(format!("{}: {}", key.unwrap(), num)))
+fn group_lines<'a>(start: Option<&'a str>, lines: &mut Iter<&'a str>) -> TreeItem<'a> {
+    let mut item = Vec::new();
+    loop {
+        let next = lines.next();
+        if let Some(line) = next {
+            if line.contains("{") || line.contains("[") {
+                item.push(group_lines(Some(line), lines));
+            } else if line.contains("}") || line.contains("]") {
+                break;
             } else {
-                Some(TreeItem::new_leaf(format!("{}", num)))
+                item.push(TreeItem::new_leaf(*line));
             }
-        }
-        Value::String(val) => {
-            if key.is_some() {
-                Some(TreeItem::new_leaf(format!("{}: {}", key.unwrap(), val.to_string())))
-            } else {
-                Some(TreeItem::new_leaf(format!("{}", val.to_string())))
-            }
-        }
-        Value::Array(val) => {
-            let items: Vec<TreeItem> = 
-                val.into_iter()
-                   .map(|i| val_to_tree_item(None, i))
-                   .filter(|i| i.is_some())
-                   .map(|i| i.unwrap())
-                   .collect();
-            if key.is_some() {
-                Some(TreeItem::new(format!("{}", key.unwrap()), items))
-            } else {
-                Some(TreeItem::new("array", items))
-            }
-        }
-        Value::Object(obj) => {
-            let mut values = Vec::new();
-            for (sub_key, value) in obj.into_iter() {
-                let item = val_to_tree_item(sub_key.into(), value);
-                if let Some(item) = item {
-                    values.push(item);
-                }
-            }
-            Some(TreeItem::new("object", values))
+        } else {
+            break;
         }
     }
-}
-
-fn parse_to_tree<'a, T: Serialize>(object: &T) -> Option<TreeItem<'a>> {
-    if let Ok(json) = to_value(object) {
-        return val_to_tree_item("bioseq".to_string().into(), json)
-    }
-    None
+    TreeItem::new(start.unwrap(), item)
 }
 
 impl<'a> App<'a> {
-    fn new(filename: String) -> Self {
-        let file = get_local_xml(filename.as_str());
-        let data = parse_xml(file.as_str());
-        if let DataType::BioSeqSet(bioseq) = data.unwrap() {
+    fn new(lines: Vec<&'a str>, filename: String) -> Self {
+        let tree = group_lines("bioseq-set".into(), &mut lines.iter());
 
-            Self {
-                filename,
-                tree: StatefulTree::with_items(vec![parse_to_tree(&bioseq).unwrap()])
-            }
-        } else {
-            unimplemented!()
+        Self {
+            filename,
+            tree: StatefulTree::<'a>::with_items(vec![tree])
         }
     }
 }
@@ -133,7 +82,16 @@ fn run(file: String) -> Result<(), Box<dyn Error>> {
     let mut terminal = Terminal::new(backend)?;
 
     // App
-    let app = App::new(file);
+    let xml = get_local_xml(file.as_str());
+    let parsed = parse_xml(xml.as_str()).unwrap();
+    let pretty_string = match parsed {
+        DataType::BioSeqSet(seq) => format!("{:?}", seq),
+        _ => unimplemented!()
+    };
+    
+    let formatted = format_strings(pretty_string);
+    let lines = split_strings(&formatted);
+    let app = App::new(lines, file);
     let res = run_app(&mut terminal, app);
 
     // restore terminal
@@ -150,6 +108,18 @@ fn run(file: String) -> Result<(), Box<dyn Error>> {
     }
 
     Ok(())
+}
+
+fn format_strings(string: String) -> String {
+    string.replace(',', "\n")
+          .replace('{', "{\n").replace('}', "\n}")
+          .replace('[', "[\n").replace(']', "\n]")
+          .replace('"', " ")
+          .replace('\'', " ")
+          .replace("Str(", " ")
+}
+fn split_strings<'a>(formatted: &'a String) -> Vec<&'a str> {
+    formatted.split("\n").map(|s| s.trim()).collect()
 }
 
 fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<()> {
