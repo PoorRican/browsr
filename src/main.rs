@@ -1,11 +1,12 @@
 mod tree;
 mod cli;
 mod parsing;
+mod runtime;
 
 use crate::{
     cli::parse,
-    tree::StatefulTree,
-    parsing::*
+    parsing::*,
+    runtime::Runtime
 };
 
 use crossterm::{
@@ -26,22 +27,6 @@ use tui_tree_widget::Tree;
 use ncbi::eutils::{
     parse_xml, get_local_xml, DataType
 };
-
-struct App<'a> {
-    filename: String,
-    tree: StatefulTree<'a>,
-}
-
-impl<'a> App<'a> {
-    fn new(lines: Vec<&'a str>, filename: String) -> Self {
-        let tree = group_lines(None, &mut lines.iter());
-
-        Self {
-            filename,
-            tree: StatefulTree::<'a>::with_items(vec![tree])
-        }
-    }
-}
 
 fn main() {
     let passed: Vec<String> = env::args().collect();
@@ -64,7 +49,7 @@ fn run(file: String) -> Result<(), Box<dyn Error>> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    // App
+    // Runtime
     let xml = get_local_xml(file.as_str());
     let parsed = parse_xml(xml.as_str()).unwrap();
     let pretty_string = match parsed {
@@ -74,8 +59,8 @@ fn run(file: String) -> Result<(), Box<dyn Error>> {
     
     let formatted = format_strings(pretty_string);
     let lines = split_strings(&formatted);
-    let app = App::new(lines, file);
-    let res = run_app(&mut terminal, app);
+    let runtime = Runtime::new(lines, file);
+    let res = render(&mut terminal, runtime);
 
     // restore terminal
     disable_raw_mode()?;
@@ -93,16 +78,16 @@ fn run(file: String) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<()> {
+fn render<B: Backend>(terminal: &mut Terminal<B>, mut runtime: Runtime) -> io::Result<()> {
     loop {
         terminal.draw(|f| {
             let area = f.size();
 
-            let items = Tree::new(app.tree.items.clone())
+            let items = Tree::new(runtime.tree.items.clone())
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
-                        .title(format!("browsr - {}", app.filename)),
+                        .title(format!("browsr - {}", runtime.filename)),
                 )
                 .highlight_style(
                     Style::default()
@@ -111,19 +96,19 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
                         .add_modifier(Modifier::BOLD),
                 )
                 .highlight_symbol(">> ");
-            f.render_stateful_widget(items, area, &mut app.tree.state);
+            f.render_stateful_widget(items, area, &mut runtime.tree.state);
         })?;
 
         if let Event::Key(key) = event::read()? {
             match key.code {
                 KeyCode::Char('q') => return Ok(()),
-                KeyCode::Char('\n' | ' ') => app.tree.toggle(),
-                KeyCode::Left => app.tree.left(),
-                KeyCode::Right => app.tree.right(),
-                KeyCode::Down => app.tree.down(),
-                KeyCode::Up => app.tree.up(),
-                KeyCode::Home => app.tree.first(),
-                KeyCode::End => app.tree.last(),
+                KeyCode::Char('\n' | ' ') => runtime.tree.toggle(),
+                KeyCode::Left => runtime.tree.left(),
+                KeyCode::Right => runtime.tree.right(),
+                KeyCode::Down => runtime.tree.down(),
+                KeyCode::Up => runtime.tree.up(),
+                KeyCode::Home => runtime.tree.first(),
+                KeyCode::End => runtime.tree.last(),
                 _ => {}
             }
         }
