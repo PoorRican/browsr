@@ -92,7 +92,7 @@ fn render<B: Backend>(terminal: &mut Terminal<B>, mut runtime: Runtime) -> io::R
                 .highlight_style(
                     Style::default()
                         .fg(Color::Black)
-                        .bg(Color::LightGreen)
+                        .bg(Color::Green)
                         .add_modifier(Modifier::BOLD),
                 )
                 .highlight_symbol(">> ");
