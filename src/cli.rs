@@ -2,12 +2,12 @@ use std::process::exit;
 
 use getopts::Occur;
 
-use args::{Args,ArgsError};
+use args::{Args, ArgsError};
 
 const PROGRAM_NAME: &'static str = "browsr";
 const PROGRAM_DESC: &'static str = "Browse biological annotation data";
 
-pub fn parse(input: &Vec<String>) -> Result<String, ArgsError> {
+pub fn parse_args(input: &Vec<String>) -> Result<String, ArgsError> {
     let mut args = Args::new(PROGRAM_NAME, PROGRAM_DESC);
     args.flag("h", "help", "Print the usage menu");
     args.option("f",
