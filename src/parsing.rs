@@ -39,8 +39,8 @@ pub fn format_strings(string: String) -> String {
 ///
 /// Since Rust debug string seems to use a few newlines,
 /// [`format_strings()`] adds newlines before and after every bracket.
-pub fn split_strings(formatted: &String) -> Vec<&str> {
-    formatted.split("\n").map(|s| s.trim()).collect()
+pub fn split_strings(formatted: String) -> Vec<String> {
+    formatted.split("\n").map(|s| s.trim().to_string()).collect()
 }
 
 /// Serves the main purpose of creating a collapsible list from a vector of newlines.
@@ -63,8 +63,8 @@ pub fn split_strings(formatted: &String) -> Vec<&str> {
 /// # Returns
 ///
 /// A well formatted [`TreeItem`] to be used in a [`crate::tree::StatefulTree`]
-pub fn group_lines<'a>( start: Option<&&'a str>,
-                        lines: &mut Iter<&'a str> ) -> TreeItem<'a> {
+pub fn group_lines<'a>( start: Option<&String>,
+                        lines: &mut Iter<String> ) -> TreeItem<'a> {
     let mut item = Vec::new();
     let mut start = start;
     loop {
@@ -80,12 +80,12 @@ pub fn group_lines<'a>( start: Option<&&'a str>,
             } else if line.contains("}") || line.contains("]") {
                 break;
             } else {
-                item.push(TreeItem::new_leaf(*line));
+                item.push(TreeItem::new_leaf(line.to_owned()));
             }
         } else {
             break;
         }
     }
-    TreeItem::new(*start.unwrap(), item)
+    TreeItem::new(start.unwrap().clone(), item)
 }
 

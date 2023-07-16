@@ -1,18 +1,16 @@
 use crate::{
     runtime::Runtime,
-    parsing::{format_strings, split_strings}
+    parsing::{format_strings, split_strings},
+    mode::DetailMode
 };
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    event::{DisableMouseCapture, EnableMouseCapture},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use std::{io, error::Error};
-use tui_tree_widget::Tree;
 use tui::{
-    backend::{Backend, CrosstermBackend},
-    style::{Color, Modifier, Style},
-    widgets::{Block, Borders},
+    backend::CrosstermBackend,
     Terminal,
 };
 use ncbi::{parse_xml, get_local_xml, DataType};
@@ -34,9 +32,11 @@ pub fn bootstrap_terminal(file: String) -> Result<(), Box<dyn Error>> {
     };
 
     let formatted = format_strings(pretty_string);
-    let lines = split_strings(&formatted);
-    let runtime = Runtime::new(lines, file);
-    let res = render_tree(&mut terminal, runtime);
+    let lines = split_strings(formatted);
+    let mode = Box::new(DetailMode::new(lines, file));
+    let mut runtime = Runtime::new(&mut terminal, mode);
+
+    let res = runtime.run_ui();
 
     // restore terminal
     disable_raw_mode()?;
@@ -54,39 +54,3 @@ pub fn bootstrap_terminal(file: String) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn render_tree<B: Backend>(terminal: &mut Terminal<B>, mut runtime: Runtime) -> io::Result<()> {
-    loop {
-        terminal.draw(|f| {
-            let area = f.size();
-
-            let items = Tree::new(runtime.tree.items.clone())
-                .block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .title(format!("browsr - {}", runtime.filename)),
-                )
-                .highlight_style(
-                    Style::default()
-                        .fg(Color::Black)
-                        .bg(Color::Green)
-                        .add_modifier(Modifier::BOLD),
-                )
-                .highlight_symbol(">> ");
-            f.render_stateful_widget(items, area, &mut runtime.tree.state);
-        })?;
-
-        if let Event::Key(key) = event::read()? {
-            match key.code {
-                KeyCode::Char('q') => return Ok(()),
-                KeyCode::Char('\n' | ' ') => runtime.tree.toggle(),
-                KeyCode::Left => runtime.tree.left(),
-                KeyCode::Right => runtime.tree.right(),
-                KeyCode::Down => runtime.tree.down(),
-                KeyCode::Up => runtime.tree.up(),
-                KeyCode::Home => runtime.tree.first(),
-                KeyCode::End => runtime.tree.last(),
-                _ => {}
-            }
-        }
-    }
-}
