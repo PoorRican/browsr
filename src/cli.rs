@@ -14,7 +14,7 @@ pub fn parse_args(input: &Vec<String>) -> Result<String, ArgsError> {
         "filename",
         "The name of the annotation file to open",
         "NAME",
-        Occur::Req,
+        Occur::Optional,
         Some(String::from("annotation.xml")));
 
     args.parse(input)?;
@@ -24,6 +24,9 @@ pub fn parse_args(input: &Vec<String>) -> Result<String, ArgsError> {
         println!("{}", args.full_usage());
         exit(1);
     }
-    
-    Ok(args.value_of("filename")?)
+    if args.has_value("filename") {
+        Ok(args.value_of("filename")?)
+    } else {
+        panic!("I have nothing to do...");
+    }
 }
