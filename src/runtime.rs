@@ -1,17 +1,17 @@
-use tui::{backend::Backend, Terminal, };
+use crate::ui::TerminalAlias;
 
 use crate::
     mode::{Mode, ModeReturns};
 
 use std::io;
 
-pub struct Runtime<'a, B: Backend> {
-    terminal: &'a mut Terminal<B>,
-    mode: Box<dyn Mode<B>>
+pub struct Runtime<'a> {
+    terminal: &'a mut TerminalAlias,
+    mode: Box<dyn Mode>
 }
 
-impl<'a, B: Backend> Runtime<'a, B> {
-    pub fn new(terminal: &'a mut Terminal<B>, mode: Box<dyn Mode<B>>) -> Self {
+impl<'a> Runtime<'a> {
+    pub fn new(terminal: &'a mut TerminalAlias, mode: Box<dyn Mode>) -> Self {
         Self {
             mode,
             terminal
@@ -30,5 +30,4 @@ impl<'a, B: Backend> Runtime<'a, B> {
             }
         }
     }
-
 }

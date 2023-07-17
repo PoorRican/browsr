@@ -1,7 +1,6 @@
 use crate::{
     runtime::Runtime,
-    parsing::{format_strings, split_strings},
-    mode::DetailMode
+    mode::Mode,
 };
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
@@ -13,32 +12,19 @@ use tui::{
     backend::CrosstermBackend,
     Terminal,
 };
-use ncbi::{parse_xml, get_local_xml, DataType};
 
-pub fn bootstrap_terminal(file: String) -> Result<(), Box<dyn Error>> {
-    // Terminal initialization
+pub type TerminalAlias = Terminal<CrosstermBackend<io::Stdout>>;
+
+fn init_terminal() -> io::Result<TerminalAlias> {
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
 
-    // Runtime
-    let xml = get_local_xml(file.as_str());
-    let parsed = parse_xml(xml.as_str()).unwrap();
-    let pretty_string = match parsed {
-        DataType::BioSeqSet(seq) => format!("{:?}", seq),
-        _ => unimplemented!()
-    };
+    Terminal::new(backend)
+}
 
-    let formatted = format_strings(pretty_string);
-    let lines = split_strings(formatted);
-    let mode = Box::new(DetailMode::new(lines, file));
-    let mut runtime = Runtime::new(&mut terminal, mode);
-
-    let res = runtime.run_ui();
-
-    // restore terminal
+fn restore_terminal(mut terminal: TerminalAlias) -> Result<(), Box<dyn Error>> {
     disable_raw_mode()?;
     execute!(
         terminal.backend_mut(),
@@ -46,11 +32,17 @@ pub fn bootstrap_terminal(file: String) -> Result<(), Box<dyn Error>> {
         DisableMouseCapture
     )?;
     terminal.show_cursor()?;
-
-    if let Err(err) = res {
-        println!("{err:?}");
-    }
-
     Ok(())
+}
+
+
+pub fn bootstrap_terminal(mode: Box<dyn Mode>) -> Result<(), Box<dyn Error>> {
+    let mut terminal = init_terminal()?;
+
+    let mut runtime = Runtime::new(&mut terminal, mode);
+
+    runtime.run_ui()?;
+
+    restore_terminal(terminal)
 }
 

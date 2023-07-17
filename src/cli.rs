@@ -4,10 +4,12 @@ use getopts::Occur;
 
 use args::{Args, ArgsError};
 
+use crate::mode::{Mode, DetailMode};
+
 const PROGRAM_NAME: &'static str = "browsr";
 const PROGRAM_DESC: &'static str = "Browse biological annotation data";
 
-pub fn parse_args(input: &Vec<String>) -> Result<String, ArgsError> {
+pub fn parse_args(input: &Vec<String>) -> Result<Box<dyn Mode>, ArgsError> {
     let mut args = Args::new(PROGRAM_NAME, PROGRAM_DESC);
     args.flag("h", "help", "Print the usage menu");
     args.option("f",
@@ -25,7 +27,8 @@ pub fn parse_args(input: &Vec<String>) -> Result<String, ArgsError> {
         exit(1);
     }
     if args.has_value("filename") {
-        Ok(args.value_of("filename")?)
+        let filename = args.value_of("filename")?;
+        Ok(Box::new(DetailMode::new(filename)))
     } else {
         panic!("I have nothing to do...");
     }

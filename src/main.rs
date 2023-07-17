@@ -12,13 +12,13 @@ use std::{env, process::exit};
 fn main() {
     let passed: Vec<String> = env::args().collect();
     match parse_args(&passed) {
-        Ok(file) => {
-            bootstrap_terminal(file).unwrap()
+        Ok(mode) => {
+            bootstrap_terminal(mode).unwrap()
         }
         Err(e) => {
             println!("{}", e);
             exit(1);
         }
-    }
+    };
 }
 

@@ -1,15 +1,14 @@
 use crossterm::event::{self, Event, KeyCode};
-use std::io;
+use std::{io, sync::Arc};
 use tui_tree_widget::Tree;
 use tui::{
-    backend::Backend,
     style::{Color, Modifier, Style},
-    widgets::{Block, Borders},
-    Terminal,
+    widgets::{Block, Borders}
 };
+use ncbi::{parse_xml, get_local_xml, DataType};
 
 use super::{Mode, ModeReturns};
-use crate::{tree::StatefulTree, parsing::group_lines};
+use crate::{tree::StatefulTree, parsing::{group_lines, split_strings, format_strings}, ui::TerminalAlias};
 
 pub struct DetailMode<'a> {
     pub filename: String,
@@ -17,18 +16,30 @@ pub struct DetailMode<'a> {
 }
 
 impl<'a> DetailMode<'a> {
-    pub fn new(lines: Vec<String>, filename: String) -> Self {
-        let tree = group_lines(None, &mut lines.iter());
-
+    pub fn new(filename: String) -> Self {
         Self {
+            tree: Self::build_tree(filename.as_str()),
             filename,
-            tree: StatefulTree::<'a>::with_items(vec![tree])
         }
+    }
+
+    fn build_tree(filename: &str) -> StatefulTree<'a> {
+        let xml = Arc::new(get_local_xml(filename));
+        let parsed = parse_xml(xml.as_str()).unwrap();
+        let pretty_string = match parsed {
+            DataType::BioSeqSet(seq) => format!("{:?}", seq),
+            _ => unimplemented!()
+        };
+
+        let formatted = format_strings(pretty_string);
+        let lines = split_strings(formatted);
+        let tree = group_lines(None, &mut lines.iter());
+        StatefulTree::with_items(vec![tree])
     }
 }
 
-impl<B: Backend> Mode<B> for DetailMode<'_> {
-    fn render(&mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
+impl Mode for DetailMode<'_> {
+    fn render(&mut self, terminal: &mut TerminalAlias) -> io::Result<()> {
         terminal.draw(|f| {
             let area = f.size();
 
