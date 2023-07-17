@@ -1,7 +1,9 @@
 //! Handle UI modes
 
 mod detail;
+mod menu;
 
+pub use menu::MenuMode;
 pub use detail::DetailMode;
 
 use std::io;
@@ -10,6 +12,7 @@ use crate::ui::TerminalAlias;
 
 pub enum ModeReturns {
     Quit,
+    GoToDetails
 }
 
 pub trait Mode {

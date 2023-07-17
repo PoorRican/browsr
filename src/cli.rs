@@ -1,35 +1,27 @@
-use std::process::exit;
+use std::error::Error;
+use clap::{arg, Command};
 
-use getopts::Occur;
+use crate::mode::{Mode, DetailMode, MenuMode};
 
-use args::{Args, ArgsError};
+fn cli() -> Command {
+    Command::new("browsr")
+        .about("Browse biological annotation data")
+        .subcommand(
+            Command::new("view")
+                .about("Directly view annotation data")
+                .arg(arg!(<FILENAME> "the file to parse and view"))
+        )
+}
 
-use crate::mode::{Mode, DetailMode};
 
-const PROGRAM_NAME: &'static str = "browsr";
-const PROGRAM_DESC: &'static str = "Browse biological annotation data";
+pub fn parse_args() -> Result<Box<dyn Mode>, Box<dyn Error>> {
+    let matches = cli().get_matches();
 
-pub fn parse_args(input: &Vec<String>) -> Result<Box<dyn Mode>, ArgsError> {
-    let mut args = Args::new(PROGRAM_NAME, PROGRAM_DESC);
-    args.flag("h", "help", "Print the usage menu");
-    args.option("f",
-        "filename",
-        "The name of the annotation file to open",
-        "NAME",
-        Occur::Optional,
-        Some(String::from("annotation.xml")));
-
-    args.parse(input)?;
-
-    let help = args.value_of("help")?;
-    if help {
-        println!("{}", args.full_usage());
-        exit(1);
-    }
-    if args.has_value("filename") {
-        let filename = args.value_of("filename")?;
-        Ok(Box::new(DetailMode::new(filename)))
-    } else {
-        panic!("I have nothing to do...");
+    match matches.subcommand() {
+        Some(("view", sub_matches)) => {
+            let filename = sub_matches.get_one::<String>("FILENAME").expect("required");
+            Ok(Box::new(DetailMode::new(filename)))
+        }
+        _ => Ok(Box::new(MenuMode::new()))
     }
 }

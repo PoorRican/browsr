@@ -26,6 +26,7 @@ impl<'a> Runtime<'a> {
                 // catch mode changes here
                 match inner {
                     ModeReturns::Quit => return Ok(Some(inner)),
+                    _ => todo!()
                 }
             }
         }

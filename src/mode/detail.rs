@@ -16,10 +16,10 @@ pub struct DetailMode<'a> {
 }
 
 impl<'a> DetailMode<'a> {
-    pub fn new(filename: String) -> Self {
+    pub fn new(filename: &String) -> Self {
         Self {
             tree: Self::build_tree(filename.as_str()),
-            filename,
+            filename: filename.to_owned(),
         }
     }
 

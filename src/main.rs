@@ -7,11 +7,10 @@ mod mode;
 
 use crate::{cli::parse_args, ui::bootstrap_terminal};
 
-use std::{env, process::exit};
+use std::process::exit;
 
 fn main() {
-    let passed: Vec<String> = env::args().collect();
-    match parse_args(&passed) {
+    match parse_args() {
         Ok(mode) => {
             bootstrap_terminal(mode).unwrap()
         }
