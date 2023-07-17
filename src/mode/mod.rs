@@ -2,7 +2,9 @@
 
 mod detail;
 mod menu;
+mod input;
 
+pub use input::InputMode;
 pub use menu::MenuMode;
 pub use detail::DetailMode;
 
@@ -12,7 +14,8 @@ use crate::ui::TerminalAlias;
 
 pub enum ModeReturns {
     Quit,
-    GoToDetails
+    GoToDetails(Option<String>),
+    GoToInput(Box<ModeReturns>),
 }
 
 pub trait Mode {

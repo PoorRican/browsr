@@ -28,7 +28,7 @@ impl<'a> MenuMode<'a> {
         let selected = self.tree.state.selected();
         if let Some(selected) = selected.first() {
             match selected {
-                0usize => todo!(),
+                0usize => Some(ModeReturns::GoToInput(Box::new(ModeReturns::GoToDetails(None)))),
                 1usize => Some(ModeReturns::Quit),
                 _ => Some(ModeReturns::Quit),
             }
@@ -38,8 +38,6 @@ impl<'a> MenuMode<'a> {
 
     }
 }
-
-
 
 impl<'a> Mode for MenuMode<'a> {
     fn render(&mut self, terminal: &mut TerminalAlias) -> io::Result<()> {
@@ -84,7 +82,6 @@ impl<'a> Mode for MenuMode<'a> {
         Ok(None)
     }
 }
-
 
 /// helper function to create a centered rect using up certain percentage of the available rect `r`
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {

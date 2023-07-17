@@ -1,7 +1,7 @@
 use crate::ui::TerminalAlias;
 
 use crate::
-    mode::{Mode, ModeReturns};
+    mode::{Mode, ModeReturns, InputMode, DetailMode};
 
 use std::io;
 
@@ -21,11 +21,18 @@ impl<'a> Runtime<'a> {
     pub fn run_ui(&mut self) -> io::Result<Option<ModeReturns>> {
         loop {
             self.mode.render(&mut self.terminal)?;
+
             let mode_return = self.mode.handle_input()?;
             if let Some(inner) = mode_return {
                 // catch mode changes here
                 match inner {
                     ModeReturns::Quit => return Ok(Some(inner)),
+                    ModeReturns::GoToInput(next) => {
+                        self.mode = Box::new(InputMode::new(next));
+                    }
+                    ModeReturns::GoToDetails(filename) => {
+                        self.mode = Box::new(DetailMode::new(&filename.unwrap()));
+                    }
                     _ => todo!()
                 }
             }
